@@ -26,11 +26,14 @@ export const ingestDocument = async (content: string, metadata: any) => {
     // 2. Embed chunks
     // 3. Store in VectorStore table
 
-    // Mock storage
-    await prisma.vectorStore.create({
-        data: {
-            content,
-            metadata,
-        },
-    });
+    // Mock storage - VectorStore model is currently disabled
+    // TODO: Uncomment when pgvector extension is enabled
+    // await prisma.vectorStore.create({
+    //     data: {
+    //         content,
+    //         metadata,
+    //     },
+    // });
+
+    console.log('Document ingestion skipped - VectorStore disabled');
 };
