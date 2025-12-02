@@ -1,0 +1,10 @@
+﻿node_modules/
+dist/
+coverage/
+.env
+.env.development
+.env.production
+db_data/
+logs/
+*.log
+.DS_Store
