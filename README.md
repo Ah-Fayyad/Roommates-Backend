@@ -1,183 +1,377 @@
-# Roommates Backend
+﻿#  Roommates Backend API
 
-Node.js + Express + PostgreSQL backend API for the Roommates platform.
+<div dir="rtl">
 
-## Features
+**خادم Express.js متقدم للبحث عن شركاء السكن مع قاعدة بيانات Prisma وخدمات AI**
 
-- 🔐 **Authentication**: JWT-based auth with bcrypt
-- 📝 **CRUD Operations**: Users, Listings, Chats, etc.
-- 💬 **Real-time Chat**: Socket.io integration
-- 🤖 **AI Integration**: Claude API for smart matching
-- 📊 **Analytics**: Track views, visits, and user activity
-- 🔔 **Notifications**: Real-time notification system
-- 📸 **Image Upload**: Cloudinary integration
-- 🛡️ **Security**: Helmet, CORS, validation
+**Advanced Express.js backend server with Prisma database and AI services for finding compatible roommates.**
 
-## Tech Stack
+###  الحالة | Status
 
-- **Node.js** with TypeScript
-- **Express.js** framework
-- **PostgreSQL** database
-- **Prisma** ORM
-- **Socket.io** for real-time features
-- **JWT** for authentication
-- **Cloudinary** for image storage
+ **قيد التشغيل والاختبار** | Functional & Testing
 
-## Getting Started
+---
 
-### Prerequisites
+##  المحتويات | Table of Contents
 
-- Node.js 18+
-- PostgreSQL 14+
-- npm or yarn
+- [البدء السريع](#البدء-السريع)
+- [التثبيت](#التثبيت)
+- [API Endpoints](#api-endpoints)
+- [قاعدة البيانات](#قاعدة-البيانات)
+- [الخدمات](#الخدمات)
+- [الأمان](#الأمان)
 
-### Installation
+---
 
-1. Clone the repository:
+## البدء السريع | Quick Start
+
 ```bash
-git clone https://github.com/Ah-Fayyad/Roommates-Backend.git
+# استنساخ
+git clone https://github.com/Ah-Fayyad/Roommates-Backend
+cd Roommates-Backend
+
+# تثبيت
+npm install
+
+# إعداد البيئة
+echo "PORT=5000" > .env
+echo "DATABASE_URL=file:./prisma/dev.db" >> .env
+echo "JWT_SECRET=your-secret-key" >> .env
+echo "NODE_ENV=development" >> .env
+
+# إعداد قاعدة البيانات
+npx prisma generate
+npx prisma db push
+npx prisma db seed
+
+# التشغيل
+npm run dev
+```
+
+**يعمل على:** http://localhost:5000
+
+---
+
+## التثبيت الكامل | Full Installation
+
+### المتطلبات | Prerequisites
+
+- Node.js v18+
+- npm v9+
+- SQLite أو PostgreSQL
+
+### خطوات التثبيت
+
+1. **استنساخ المستودع**
+```bash
+git clone https://github.com/Ah-Fayyad/Roommates-Backend
 cd Roommates-Backend
 ```
 
-2. Install dependencies:
+2. **تثبيت المكتبات**
 ```bash
 npm install
 ```
 
-3. Create `.env` file:
+3. **إعداد متغيرات البيئة** (.env)
 ```env
+# Server
 PORT=5000
-DATABASE_URL="postgresql://postgres@localhost:5433/roommates_db?schema=public"
-JWT_SECRET="your_jwt_secret_key_here"
-CLAUDE_API_KEY="your_anthropic_api_key"
-NODE_ENV="development"
+NODE_ENV=development
+
+# Database
+DATABASE_URL="file:./prisma/dev.db"
+
+# Authentication
+JWT_SECRET="your-super-secret-key-change-in-production"
+
+# Frontend
+FRONTEND_URL=http://localhost:5173
+
+# Optional Services
+GEMINI_API_KEY=your-key
+CLOUDINARY_NAME=your-name
+CLOUDINARY_KEY=your-key
+CLOUDINARY_SECRET=your-secret
 ```
 
-4. Set up the database:
+4. **إعداد قاعدة البيانات**
 ```bash
+# توليد Prisma Client
+npx prisma generate
+
+# دفع Schema
 npx prisma db push
+
+# إدراج البيانات الاختبارية
+npx prisma db seed
 ```
 
-5. Seed demo data (optional):
-```bash
-npx ts-node scripts/seed_demo.ts
-```
-
-6. Start the development server:
+5. **التشغيل**
 ```bash
 npm run dev
 ```
 
-The API will be available at `http://localhost:5000`
+---
 
-## Available Scripts
+## API Endpoints | نقاط النهاية
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
+### مصادقة | Authentication
 
-## API Endpoints
+```
+POST /api/auth/signup
+ Body: { email, password, fullName, role, phoneNumber, university, bio, preferences }
+ Returns: { token, user }
 
-### Authentication
-- `POST /api/auth/signup` - Register new user
-- `POST /api/auth/login` - Login user
+POST /api/auth/login
+ Body: { email, password }
+ Returns: { token, user }
 
-### Users
-- `GET /api/users/profile` - Get current user profile
-- `PUT /api/users/profile` - Update profile
-- `GET /api/users/:id` - Get user by ID
+POST /api/auth/forgot-password
+ Body: { email }
+ Returns: { message, token }
 
-### Listings
-- `GET /api/listings` - Get all listings
-- `POST /api/listings` - Create listing
-- `GET /api/listings/:id` - Get listing details
-- `PUT /api/listings/:id` - Update listing
-- `DELETE /api/listings/:id` - Delete listing
+POST /api/auth/reset-password
+ Body: { token, newPassword }
+ Returns: { message }
+```
 
-### Chats
-- `GET /api/chats` - Get user chats
-- `POST /api/chats` - Create chat
-- `POST /api/chats/:id/messages` - Send message
+### المستخدمون | Users
 
-### Admin
-- `GET /api/admin/users` - Get all users
-- `GET /api/admin/reports` - Get reports
-- `PUT /api/admin/reports/:id` - Update report status
+```
+GET /api/users/me
+ Headers: Authorization: Bearer <token>
+ Returns: { user }
 
-See `README_API.md` for complete API documentation.
+GET /api/users/profile
+ Returns: { user with preferences }
 
-## Database Schema
+PUT /api/users/profile
+ Body: { fullName, avatar, bio, preferences }
+ Returns: { updated user }
 
-The application uses Prisma ORM with PostgreSQL. Main models:
+PUT /api/users/settings
+ Body: { email, language, currentPassword, newPassword }
+ Returns: { message }
 
-- **User**: User accounts (USER, LANDLORD, ADMIN roles)
-- **Listing**: Room/apartment listings
-- **Chat**: Chat conversations
-- **Message**: Chat messages
-- **Favorite**: Saved listings
-- **VisitRequest**: Schedule property visits
-- **Report**: User/listing reports
-- **Notification**: User notifications
+DELETE /api/users/account
+ Returns: { message }
+```
 
-Run `npx prisma studio` to explore the database visually.
+### الإعلانات | Listings
 
-## Environment Variables
+```
+GET /api/listings
+ Query: ?page=1&limit=20&price_min=0&price_max=5000
+ Returns: { listings, total, page }
 
-Required environment variables:
+POST /api/listings
+ Headers: Authorization: Bearer <token>
+ Body: { title, description, price, address, roomType, size, amenities }
+ Returns: { listing }
 
-- `PORT` - Server port (default: 5000)
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` - Secret key for JWT tokens
-- `CLAUDE_API_KEY` - Anthropic API key (optional)
-- `NODE_ENV` - Environment (development/production)
+GET /api/listings/:id
+ Returns: { listing with details }
 
-## Demo Accounts
+PUT /api/listings/:id
+ Body: { title, description, price, ... }
+ Returns: { updated listing }
 
-After running the seed script:
+DELETE /api/listings/:id
+ Returns: { message: "Deleted" }
+```
 
-- **Landlord**: `landlord@test.com` / `123456`
-- **Tenant**: `tenant@test.com` / `123456`
-- **Admin**: `admin@test.com` / `123456`
+### المحادثات | Chats
 
-## Deployment
+```
+GET /api/chats
+ Headers: Authorization: Bearer <token>
+ Returns: { chats: [] }
 
-### Railway / Render / Heroku
+POST /api/chats/:chatId/message
+ Body: { content, type }
+ Returns: { message }
+```
 
-1. Connect your GitHub repository
+### طلبات الزيارة | Visits
+
+```
+GET /api/visits
+ Query: ?type=sent|received
+ Returns: { visits: [] }
+
+POST /api/visits
+ Body: { listingId, proposedTimes, message }
+ Returns: { visit }
+
+PUT /api/visits/:id
+ Body: { status }
+ Returns: { updated visit }
+```
+
+### الإبلاغات | Reports
+
+```
+POST /api/reports
+ Body: { targetType, targetId, reason, description }
+ Returns: { report }
+
+GET /api/reports (admin only)
+ Returns: { reports: [] }
+```
+
+---
+
+## قاعدة البيانات | Database
+
+### النموذج | Schema
+
+10 Models رئيسية:
+- **User** - المستخدمون
+- **Listing** - الإعلانات
+- **Preference** - التفضيلات
+- **Chat** - المحادثات
+- **Message** - الرسائل
+- **VisitRequest** - طلبات الزيارة
+- **Favorite** - المفضلات
+- **Report** - الإبلاغات
+- **Notification** - الإشعارات
+- **Image** - الصور
+
+### البيانات الاختبارية
+
+بعد تشغيل `npx prisma db seed`:
+
+```
+ Users: 60 مستخدم
+ Landlords: 20 مالك عقار
+ Listings: 200 إعلان
+ Messages: آلاف الرسائل
+ Images: آلاف الصور
+```
+
+---
+
+## الخدمات | Services
+
+### المصادقة | Authentication
+- JWT Token Generation
+- Password Hashing (bcrypt)
+- Email Verification
+
+### الإبلاغ | Notifications
+- Real-time updates (Socket.io)
+- Email notifications
+- In-app alerts
+
+### الصور | Image Upload
+- Cloudinary Integration
+- Image optimization
+- URL generation
+
+### الذكاء الاصطناعي | AI Services
+- Google Gemini API
+- Price suggestions
+- Content analysis
+- Chatbot assistance
+
+---
+
+## الأمان | Security
+
+ **JWT Authentication** - مصادقة آمنة
+ **Password Hashing** - bcrypt encryption
+ **CORS Protection** - حماية النطاق
+ **Input Validation** - التحقق من المدخلات
+ **SQL Injection Prevention** - Prisma ORM
+ **Rate Limiting Ready** - معد للتطبيق
+
+---
+
+## الأوامر | Commands
+
+```bash
+npm run dev          # تطوير مع nodemon
+npm run build        # بناء للإنتاج
+npm start            # تشغيل الإنتاج
+npm test             # اختبارات
+npm run lint         # فحص الأخطاء
+```
+
+---
+
+## الهندسة المعمارية | Architecture
+
+```
+Express.js Server
+ Routes (API endpoints)
+ Controllers (Business logic)
+ Services (External integrations)
+ Middleware (Authentication, validation)
+ Database (Prisma ORM)
+ Socket.io (Real-time)
+ Utils (Helpers)
+```
+
+---
+
+## النشر | Deployment
+
+### Railway.app (موصى به)
+
+```bash
+1. ربط GitHub Repository
+2. تعيين متغيرات البيئة
+3. تحديد Build command: npm run build
+4. Start command: npm start
+```
+
+### Render.com
+
+```bash
+1. Connect GitHub
 2. Set environment variables
-3. Add PostgreSQL database addon
-4. Deploy!
-
-Build command: `npm run build`
-Start command: `npm start`
-
-## Project Structure
-
-```
-src/
-├── controllers/     # Route controllers
-├── routes/         # API routes
-├── middleware/     # Custom middleware
-├── utils/          # Utility functions
-├── socket/         # Socket.io handlers
-├── chatbot/        # AI chatbot logic
-├── app.ts          # Express app setup
-└── server.ts       # Server entry point
+3. Deploy
 ```
 
-## Contributing
+---
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+## استكشاف الأخطاء | Troubleshooting
 
-## License
+**خطأ:** Database error
 
-MIT License - see LICENSE file for details
+```bash
+# الحل:
+npx prisma db push
+npx prisma db seed
+```
 
-## Support
+**خطأ:** Port already in use
 
-For issues and questions, please open an issue on GitHub.
+```bash
+# غيّر PORT في .env أو أوقف العملية الأخرى
+```
+
+---
+
+## الدعم | Support
+
+-  support@roommates.com
+-  GitHub Issues
+-  API Documentation
+
+---
+
+## الترخيص | License
+
+MIT License
+
+<div dir="ltr">
+
+**Last Updated:** February 22, 2026
+**Status:**  Production Ready
+**Version:** 1.0.0
+
+</div>
+
+</div>
