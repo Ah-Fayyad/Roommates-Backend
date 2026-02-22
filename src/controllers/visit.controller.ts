@@ -1,7 +1,7 @@
 // Visit Request Controller
 
 import { Request, Response } from 'express';
-import { PrismaClient, VisitStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 const prisma = new PrismaClient();
@@ -28,9 +28,9 @@ export const createVisitRequest = async (req: AuthRequest, res: Response) => {
                 listingId,
                 requesterId: userId!,
                 ownerId: listing.ownerId,
-                proposedTimes,
+                proposedTimes: JSON.stringify(proposedTimes),
                 message,
-                status: VisitStatus.REQUESTED
+                status: 'REQUESTED'
             },
             include: {
                 requester: {
@@ -130,7 +130,7 @@ export const acceptVisitRequest = async (req: AuthRequest, res: Response) => {
         const updated = await prisma.visitRequest.update({
             where: { id },
             data: {
-                status: VisitStatus.ACCEPTED,
+                status: 'ACCEPTED',
                 scheduledTime: scheduledTime ? new Date(scheduledTime) : null
             },
             include: {
@@ -181,7 +181,7 @@ export const declineVisitRequest = async (req: AuthRequest, res: Response) => {
         const updated = await prisma.visitRequest.update({
             where: { id },
             data: {
-                status: VisitStatus.DECLINED,
+                status: 'DECLINED',
                 declineReason: reason
             }
         });
@@ -215,7 +215,7 @@ export const completeVisit = async (req: AuthRequest, res: Response) => {
         const updated = await prisma.visitRequest.update({
             where: { id },
             data: {
-                status: VisitStatus.COMPLETED,
+                status: 'COMPLETED',
                 completedAt: new Date(),
                 notes,
                 rating

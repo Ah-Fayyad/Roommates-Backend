@@ -45,3 +45,17 @@ export const getFavorites = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+export const checkFavorite = async (req: AuthRequest, res: Response) => {
+    try {
+        const { listingId } = req.params;
+        const favorite = await prisma.favorite.findFirst({
+            where: {
+                userId: req.user.id,
+                listingId,
+            },
+        });
+        res.json({ isFavorite: !!favorite });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+};

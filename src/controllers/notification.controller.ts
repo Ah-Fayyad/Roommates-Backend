@@ -1,7 +1,7 @@
 // Notification Controller
 
 import { Request, Response } from 'express';
-import { PrismaClient, NotificationType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 const prisma = new PrismaClient();
@@ -93,7 +93,7 @@ export const createNotification = async (
         return await prisma.notification.create({
             data: {
                 userId,
-                type: type as NotificationType,
+                type: type,
                 title,
                 message,
                 data

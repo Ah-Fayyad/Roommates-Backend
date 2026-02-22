@@ -42,3 +42,40 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+export const createChat = async (req: AuthRequest, res: Response) => {
+    try {
+        const { participantId } = req.body;
+
+        // Check if chat already exists
+        const existingChat = await prisma.chat.findFirst({
+            where: {
+                AND: [
+                    { participants: { some: { id: req.user.id } } },
+                    { participants: { some: { id: participantId } } }
+                ]
+            }
+        });
+
+        if (existingChat) {
+            return res.json(existingChat);
+        }
+
+        // Create new chat
+        const newChat = await prisma.chat.create({
+            data: {
+                participants: {
+                    connect: [
+                        { id: req.user.id },
+                        { id: participantId }
+                    ]
+                }
+            }
+        });
+
+        res.status(201).json(newChat);
+    } catch (error) {
+        console.error('Create chat error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};

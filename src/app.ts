@@ -3,35 +3,33 @@ import cors from "cors";
 import morgan from "morgan";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 
-// Middleware
-const allowedOrigins = [
-  process.env.FRONTEND_URL || "http://localhost:5176",
-  "http://localhost:5174",
-  "http://localhost:5173",
-  "http://127.0.0.1:5174",
-  "http://127.0.0.1:5173",
-  "http://127.0.0.1:5176",
-];
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, "../public/uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
+// Middleware (Order is important! CORS/Helmet should be early)
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   })
 );
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false, // Allow images from other origins
+}));
+
+// Static files (should come after CORS)
+app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
+app.use(express.static(path.join(__dirname, "../public")));
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -70,7 +68,8 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/upload", uploadRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/upload", uploadRoutes);
+
+import { errorHandler } from "./middleware/error.middleware";
+app.use(errorHandler);
 
 export default app;

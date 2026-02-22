@@ -1,10 +1,12 @@
 import express from 'express';
-import { chatWithAI } from '../chatbot/chat.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { chatWithAI, getPriceAdvice, getMatchAnalysis, getSemanticSearch, getImageDescription } from '../controllers/ai.controller';
 
 const router = express.Router();
 
-router.use(authenticate);
 router.post('/chat', chatWithAI);
+router.post('/price-advice', getPriceAdvice);
+router.post('/match-analysis', getMatchAnalysis);
+router.get('/semantic-search', getSemanticSearch);
+router.post('/analyze-image', getImageDescription);
 
 export default router;
