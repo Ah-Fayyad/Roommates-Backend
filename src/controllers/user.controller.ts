@@ -126,39 +126,87 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
       email,
       currentPassword,
       newPassword,
+      confirmPassword,
       phoneNumber,
       fullName,
       language,
     } = req.body;
+
+    console.log("📝 Update settings request from userId:", userId);
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
+      console.log("❌ User not found:", userId);
       return res.status(404).json({ message: "User not found" });
     }
 
-    // If changing password
-    if (currentPassword && newPassword) {
+    // If changing password, validate it
+    if (currentPassword || newPassword) {
+      console.log("🔐 Password change requested");
+
+      // Check if both current and new passwords are provided
+      if (!currentPassword) {
+        return res.status(400).json({
+          message: "Current password is required to change password",
+          error: "MISSING_CURRENT_PASSWORD",
+        });
+      }
+
+      if (!newPassword) {
+        return res.status(400).json({
+          message: "New password cannot be empty",
+          error: "MISSING_NEW_PASSWORD",
+        });
+      }
+
+      // Check if passwords match
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({
+          message: "New passwords do not match",
+          error: "PASSWORD_MISMATCH",
+        });
+      }
+
+      // Check password length
+      if (newPassword.length < 8) {
+        return res.status(400).json({
+          message: "Password must be at least 8 characters",
+          error: "PASSWORD_TOO_SHORT",
+        });
+      }
+
+      // Verify current password
       const isValidPassword = await bcrypt.compare(
         currentPassword,
         user.password,
       );
+
       if (!isValidPassword) {
-        return res
-          .status(400)
-          .json({ message: "Current password is incorrect" });
+        console.log("❌ Incorrect current password");
+        return res.status(400).json({
+          message: "Current password is incorrect",
+          error: "INVALID_PASSWORD",
+        });
       }
 
+      // Hash and update new password
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       await prisma.user.update({
         where: { id: userId },
         data: { password: hashedPassword },
       });
+      console.log("✅ Password updated successfully");
     }
 
     const updateData: any = {};
+
+    // Update fullName if provided
+    if (fullName && fullName.trim()) {
+      updateData.fullName = fullName.trim();
+    }
 
     // Update email if changed
     if (email && email !== user.email) {
@@ -167,27 +215,47 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
       });
 
       if (existingUser) {
-        return res.status(400).json({ message: "Email already in use" });
+        console.log("❌ Email already in use:", email);
+        return res.status(400).json({
+          message: "Email already in use",
+          error: "DUPLICATE_EMAIL",
+        });
       }
       updateData.email = email;
+      console.log("📧 Email updated:", email);
     }
 
-    if (fullName) updateData.fullName = fullName;
-    if (phoneNumber) updateData.phoneNumber = phoneNumber;
-    if (language && ["en", "ar"].includes(language))
-      updateData.language = language;
+    // Update phoneNumber if provided
+    if (phoneNumber && phoneNumber.trim()) {
+      updateData.phoneNumber = phoneNumber.trim();
+      console.log("📱 Phone number updated");
+    }
 
+    // Update language if valid
+    if (language && ["en", "ar"].includes(language)) {
+      updateData.language = language;
+      console.log("🌐 Language updated:", language);
+    }
+
+    // Apply updates
     if (Object.keys(updateData).length > 0) {
       await prisma.user.update({
         where: { id: userId },
         data: updateData,
       });
+      console.log("✅ User data updated successfully");
     }
 
-    res.json({ message: "Settings updated successfully" });
-  } catch (error) {
-    console.error("Update settings error:", error);
-    res.status(500).json({ message: "Server error" });
+    res.json({
+      message: "Settings updated successfully",
+      success: true,
+    });
+  } catch (error: any) {
+    console.error("❌ Update settings error:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
 
