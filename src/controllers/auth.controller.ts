@@ -7,6 +7,12 @@ const prisma = new PrismaClient();
 
 export const signup = async (req: Request, res: Response) => {
   try {
+    console.log("📝 Signup request received:", {
+      email: req.body.email,
+      fullName: req.body.fullName,
+      role: req.body.role,
+    });
+
     const {
       email,
       password,
@@ -18,17 +24,26 @@ export const signup = async (req: Request, res: Response) => {
       preferences
     } = req.body;
 
+    // Validate required fields
+    if (!email || !password || !fullName) {
+      console.log("❌ Missing required fields", { email: !!email, password: !!password, fullName: !!fullName });
+      return res.status(400).json({ message: "Email, password, and full name are required" });
+    }
+
     // Validate role
     const validRoles = ["USER", "LANDLORD", "ADVERTISER"];
     if (role && !validRoles.includes(role)) {
-      return res.status(400).json({ message: "Invalid role. Must be USER or LANDLORD" });
+      console.log("❌ Invalid role:", role);
+      return res.status(400).json({ message: "Invalid role. Must be USER, LANDLORD, or ADVERTISER" });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
+      console.log("❌ User already exists:", email);
       return res.status(400).json({ message: "User already exists with this email" });
     }
 
+    console.log("🔐 Hashing password...");
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user and related preferences in a transaction
@@ -84,10 +99,19 @@ export const signup = async (req: Request, res: Response) => {
     });
 
     const token = generateToken(user!.id);
+    console.log("✅ User created successfully:", user?.id);
     res.status(201).json({ user, token });
-  } catch (error) {
-    console.error("Signup error:", error);
-    res.status(500).json({ message: "Server error", error });
+  } catch (error: any) {
+    console.error("❌ Signup error:", {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
+    res.status(500).json({ 
+      message: "Failed to create account",
+      error: error.message,
+      debug: error.code,
+    });
   }
 };
 
