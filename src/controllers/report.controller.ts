@@ -67,6 +67,7 @@ export const createReport = async (req: AuthRequest, res: Response) => {
       reportData.reportedListingId = targetId;
     }
 
+    console.log("Creating report in database...");
     // Create report
     const report = await prisma.report.create({
       data: reportData,
@@ -80,6 +81,7 @@ export const createReport = async (req: AuthRequest, res: Response) => {
         },
       },
     });
+    console.log("Report created successfully in DB:", report.id);
 
     res.status(201).json(report);
   } catch (error) {

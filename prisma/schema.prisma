@@ -10,12 +10,15 @@ datasource db {
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
-  password      String
+  password      String?
+  googleId      String?   @unique
   fullName      String
   avatar        String?
   bio           String?
   university    String?
   phoneNumber   String?
+  companyName   String?
+  licenseNumber String?
   isVerified    Boolean   @default(false)
   isBanned      Boolean   @default(false)
   role          String    @default("USER") // USER, ADMIN, LANDLORD, ADVERTISER

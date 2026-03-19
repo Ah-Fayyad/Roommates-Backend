@@ -1,20 +1,18 @@
 // Real-time Socket.io Events Handler
 
-import { Server as SocketServer } from "socket.io";
+import { Server as SocketServer, Socket } from "socket.io";
 import { Server as HTTPServer } from "http";
 import { verifyToken } from "../utils/jwt";
+import { PrismaClient } from "@prisma/client";
 
-interface UserSocket {
-  userId: string;
-  socketId: string;
-}
-
+const prisma = new PrismaClient();
 const onlineUsers = new Map<string, string>(); // userId -> socketId
 
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+let ioInstance: SocketServer | null = null;
 
 export const initializeSocket = (httpServer: HTTPServer) => {
+  if (ioInstance) return ioInstance;
+
   const io = new SocketServer(httpServer, {
     cors: {
       origin: [
@@ -31,6 +29,8 @@ export const initializeSocket = (httpServer: HTTPServer) => {
     pingInterval: 25000,
     maxHttpBufferSize: 1000000,
   });
+
+  ioInstance = io;
 
   // Authentication middleware
   io.use(async (socket, next) => {
@@ -86,17 +86,13 @@ export const initializeSocket = (httpServer: HTTPServer) => {
       );
 
       try {
-        // Validate required fields
         if (!chatId || !toUserId) {
-          console.error("Invalid message data:", { chatId, toUserId });
           socket.emit("message_error", { error: "Invalid chat or user ID" });
           return;
         }
 
-        // Determine if delivered (receiver online)
         const isDelivered = onlineUsers.has(toUserId);
 
-        // Save message to database
         const dbMessage = await prisma.message.create({
           data: {
             chatId,
@@ -107,6 +103,20 @@ export const initializeSocket = (httpServer: HTTPServer) => {
             delivered: isDelivered,
             read: false,
           },
+          include: {
+            sender: { select: { fullName: true } }
+          }
+        });
+
+        const notification = await prisma.notification.create({
+          data: {
+            userId: toUserId,
+            type: "NEW_MESSAGE",
+            title: "New Message",
+            message: `${dbMessage.sender.fullName} sent you a message`,
+            data: JSON.stringify({ chatId, senderId: userId }),
+            read: false,
+          }
         });
 
         const messagePayload = {
@@ -124,17 +134,19 @@ export const initializeSocket = (httpServer: HTTPServer) => {
           status: isDelivered ? "delivered" : "sent",
         };
 
-        // Emit to sender (confirmation)
         socket.emit("message_sent", messagePayload);
-
-        // Emit to receiver (new message)
         io.to(`user:${toUserId}`).emit("new_message", messagePayload);
 
-        console.log(
-          `✅ Message sent from ${userId} to ${toUserId}: ${isDelivered ? "delivered" : "queued"}`,
-        );
+        io.to(`user:${toUserId}`).emit("notification", {
+          id: notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          data: JSON.parse(notification.data || '{}'),
+          createdAt: notification.createdAt,
+          read: false,
+        });
 
-        // Update user last active
         await prisma.user.update({
           where: { id: userId },
           data: { lastActiveAt: new Date() },
@@ -153,16 +165,13 @@ export const initializeSocket = (httpServer: HTTPServer) => {
           data: { read: true },
         });
 
-        // Notify the sender that their messages were read
         const chat = await prisma.chat.findUnique({
           where: { id: chatId },
           include: { participants: true },
         });
 
         if (chat) {
-          const otherParticipant = chat.participants.find(
-            (p) => p.id !== userId,
-          );
+          const otherParticipant = chat.participants.find((p) => p.id !== userId);
           if (otherParticipant) {
             io.to(`user:${otherParticipant.id}`).emit("messages_read", {
               chatId,
@@ -176,15 +185,6 @@ export const initializeSocket = (httpServer: HTTPServer) => {
       }
     });
 
-    // Handle chat opened
-    socket.on("chat_opened", ({ chatId, otherUserId }) => {
-      socket.join(`chat:${chatId}`);
-      io.to(`user:${otherUserId}`).emit("chat_opened", {
-        chatId,
-        userId,
-      });
-    });
-
     // Handle visit request
     socket.on("visit_request", ({ listingId, ownerId, proposedTimes }) => {
       io.to(`user:${ownerId}`).emit("new_visit_request", {
@@ -195,25 +195,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
       });
     });
 
-    // Handle visit response
-    socket.on("visit_response", ({ requestId, requesterId, status }) => {
-      io.to(`user:${requesterId}`).emit("visit_response", {
-        requestId,
-        status,
-        timestamp: new Date(),
-      });
-    });
-
-    // Handle notification
-    socket.on("send_notification", ({ toUserId, type, data }) => {
-      io.to(`user:${toUserId}`).emit("notification", {
-        type,
-        data,
-        timestamp: new Date(),
-      });
-    });
-
-    // Handle disconnect
+    // Handle logout/disconnect
     socket.on("disconnect", async () => {
       console.log(`User disconnected: ${userId}`);
       onlineUsers.delete(userId);
@@ -228,6 +210,8 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
   return io;
 };
+
+export const getIO = () => ioInstance;
 
 export const getOnlineUsers = () => {
   return Array.from(onlineUsers.keys());

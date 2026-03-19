@@ -1,5 +1,5 @@
 import express from "express";
-import { signup, login } from "../controllers/auth.controller";
+import { signup, login, googleLogin } from "../controllers/auth.controller";
 import {
   forgotPassword,
   resetPassword,
@@ -53,6 +53,8 @@ router.post(
   handleValidationErrors,
   login
 );
+
+router.post("/google", googleLogin);
 
 // Password Reset Routes
 router.post("/forgot-password", forgotPassword);
