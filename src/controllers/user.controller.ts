@@ -179,6 +179,13 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
       }
 
       // Verify current password
+      if (!user.password) {
+        return res.status(400).json({
+          message: "Account was created via Google. Security update required.",
+          error: "NO_PASSWORD_SET",
+        });
+      }
+
       const isValidPassword = await bcrypt.compare(
         currentPassword,
         user.password,
